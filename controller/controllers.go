@@ -9,6 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+var Rhelper *gin.Engine
+
 func GetToDoList(c *gin.Context) {
 	r := model.GetAllData()
 	c.JSON(http.StatusOK, r)
@@ -57,4 +59,64 @@ func DeleteToDoList(c *gin.Context) {
 	}
 	model.DeleteOneData(_id)
 	c.JSON(http.StatusOK, gin.H{id: "deleted"})
+}
+
+func LogPage(c * gin.Context){
+	c.HTML(http.StatusOK, "log.html",nil)
+}
+
+func LogErrorPage(c * gin.Context){
+	c.HTML(http.StatusOK, "logError.html",nil)
+}
+
+func RegisterPage(c * gin.Context){
+	c.HTML(http.StatusOK, "register.html",nil)
+}
+
+func RegisterErrorPage(c *gin.Context){
+	c.HTML(http.StatusOK, "registerError.html",nil)
+}
+
+func JudgePage(c *gin.Context){
+	c.HTML(http.StatusOK, "judge.html",nil)
+}
+
+func LogInHandler(c *gin.Context){
+	name := c.PostForm("user")
+	password := c.PostForm("password")
+	//查询
+	res,data := model.UserFind(name)
+	if res == 1{	
+		//未注册用户
+		model.UserCreateOne(name,password)
+		c.Request.URL.Path = "/v1/2"
+		Rhelper.HandleContext(c)
+	}else{
+		//已注册用户
+		if name == data.Name && password == data.Password{
+			c.Redirect(http.StatusMovedPermanently, "http://159.75.2.47:8000/index")
+		}else{
+			c.Redirect(http.StatusMovedPermanently, "http://159.75.2.47:8000/v1/2")
+		}
+	}
+}
+
+func RegisterHandler(c *gin.Context){
+	name := c.PostForm("user")
+	password := c.PostForm("password")
+	//查询
+	res,_ := model.UserFind(name)
+	
+	if res == 1{	
+		//未注册用户
+		model.UserCreateOne(name,password)
+		c.Request.URL.Path = "/v1/1"
+		Rhelper.HandleContext(c)
+	}else{
+		//已注册用户
+		c.Redirect(http.StatusMovedPermanently, "http://159.75.2.47:8000/v1/3")
+	}
+	
+	//数据表新增记录
+	
 }

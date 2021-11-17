@@ -4,6 +4,7 @@ import (
 	"fmt"
 	// _ "github.com/jinzhu/gorm/dialects/mysql"
 	"github.com/jinzhu/gorm"
+	"errors"
 )
 
 var DB *gorm.DB
@@ -12,6 +13,11 @@ type ToDo struct{
 	ID int `json:"id"`
 	Title string `json:"title"`
 	Status bool `json:"status"`
+}
+
+type User struct{
+	Name string `gorm:"primaryKey"`
+	Password string
 }
 
 
@@ -71,3 +77,30 @@ func FindOneData(_id int) ToDo{
 	return result
 }
 
+func UserCreateOne(name string, password string) int{
+	DB.AutoMigrate(&User{})
+	err := DB.Exec("insert into users(name,password) values(?,?)",name,password)
+	if	err.Error != nil{
+		fmt.Println("user table create data error")
+		fmt.Println("error: ", err.Error)
+		return 0
+	}else{
+		return 1
+	}
+}
+
+func UserFind(name string) (int,User){
+	var userData User
+	dsn := fmt.Sprintf("select * from users where name = %s", name)
+	r := DB.Raw(dsn).Scan(&userData)
+	isNil := errors.Is(r.Error,gorm.ErrRecordNotFound)	//判断是否为空
+	if r.Error != nil {
+		fmt.Println("fine name in users error")
+	}
+	if isNil{
+		fmt.Println("no this user")
+		return 1,userData
+	}
+	return 0,userData
+
+}
