@@ -2,7 +2,6 @@ package router
 
 import (
 	"easy_note/controller"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
@@ -12,7 +11,7 @@ func RoutersInit() *gin.Engine{
 	controller.Rhelper = r
 	r.Static("/static", "static")
 	r.LoadHTMLGlob("templates/*")
-	r.GET("/index", index)
+	r.GET("/index", controller.Index)
 
 	v1Group := r.Group("v1")
 	{
@@ -43,8 +42,4 @@ func RoutersInit() *gin.Engine{
 
 
 	return r
-}
-
-func index(c *gin.Context){
-	c.HTML(http.StatusOK, "index_view.html",nil)
 }

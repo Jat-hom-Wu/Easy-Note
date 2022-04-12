@@ -13,6 +13,12 @@ type ToDo struct{
 	ID int `json:"id"`
 	Title string `json:"title"`
 	Status bool `json:"status"`
+	User string `json:"user"`
+}
+
+type User struct{
+	Name string `gorm:"primaryKey"`
+	Password string
 }
 
 type User struct{
@@ -24,7 +30,7 @@ type User struct{
 func CreateDataList(todo *ToDo) int{
 	DB.AutoMigrate(&ToDo{})
 	// err := DB.Create(&todo).Error
-	err := DB.Exec("insert into to_dos(title,status) values(?,?)",todo.Title,todo.Status)
+	err := DB.Exec("insert into to_dos(title,status,user) values(?,?,?)",todo.Title,todo.Status,todo.User)
 
 	if	err.Error != nil{
 		fmt.Println("create data error")
@@ -35,9 +41,10 @@ func CreateDataList(todo *ToDo) int{
 	}
 }
 
-func GetAllData() []ToDo{
+func GetAllData(userName string) []ToDo{
 	var allData []ToDo
-	r := DB.Raw("select * from to_dos order by id desc").Scan(&allData)
+	sql := fmt.Sprintf("select * from to_dos where user = \"%s\" order by id desc", userName)
+	r := DB.Raw(sql).Scan(&allData)
 	fmt.Println("ok")
 	if r.Error != nil{
 		fmt.Println("get all data failed")
@@ -91,7 +98,7 @@ func UserCreateOne(name string, password string) int{
 
 func UserFind(name string) (int,User){
 	var userData User
-	dsn := fmt.Sprintf("select * from users where name = %s", name)
+	dsn := fmt.Sprintf("select * from users where name = \"%s\"", name)
 	r := DB.Raw(dsn).Scan(&userData)
 	isNil := errors.Is(r.Error,gorm.ErrRecordNotFound)	//判断是否为空
 	if r.Error != nil {

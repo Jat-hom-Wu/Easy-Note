@@ -5,21 +5,46 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"time"
 )
 
 var Rhelper *gin.Engine
 
 func GetToDoList(c *gin.Context) {
-	r := model.GetAllData()
+	token,err := c.Cookie("token")
+	if err != nil{
+		fmt.Println("not receive token")
+		c.JSON(http.StatusOK, gin.H{"error": "create data error"})
+		return
+	}
+	tokenClaims, err := ParseToken(token)
+	if err != nil {
+		fmt.Println("parse toekn failed",err)
+	}
+	r := model.GetAllData(tokenClaims.Username)
 	c.JSON(http.StatusOK, r)
+	//if timeout, return nil
 }
 
 func CreateToDoList(c *gin.Context) {
+	token,err := c.Cookie("token")
+	if err != nil{
+		fmt.Println("not receive token")
+		c.JSON(http.StatusOK, gin.H{"error": "create data error"})
+		return
+	}
+	tokenClaims, err := ParseToken(token)
+	if err != nil {
+		fmt.Println("parse toekn failed",err)
+		c.JSON(http.StatusOK, gin.H{"error": "server parse failed"})
+		return
+	}
 	var todo model.ToDo
 	c.BindJSON(&todo)
 	fmt.Println(todo)
+	todo.User = tokenClaims.Username
 	r := model.CreateDataList(&todo)
 	if r == 1 {
 		c.JSON(http.StatusOK, todo)
@@ -94,6 +119,22 @@ func LogInHandler(c *gin.Context){
 	}else{
 		//已注册用户
 		if name == data.Name && password == data.Password{
+			nowTime := time.Now()
+			expireTime := nowTime.Add(300 * time.Second)	//token的过期时间，header中以设置过期时间，因此此处没意义
+			issuer := "frank"
+			cla := claims{
+				Password: password,
+				Username: name,
+				StandardClaims: jwt.StandardClaims{
+					ExpiresAt: expireTime.Unix(),
+					Issuer:    issuer,
+				},
+			}
+			token,err := generateToken(cla)
+			if err != nil{
+				fmt.Println("generate token falied:",err)
+			}
+			c.SetCookie("token", token, 60, "/", "159.75.2.47", false, false)	//这个cookie字段过期时间为60s
 			c.Redirect(http.StatusMovedPermanently, "http://159.75.2.47:8000/index")
 		}else{
 			c.Redirect(http.StatusMovedPermanently, "http://159.75.2.47:8000/v1/2")
@@ -120,3 +161,44 @@ func RegisterHandler(c *gin.Context){
 	//数据表新增记录
 	
 }
+
+func Index(c *gin.Context){
+	_,err := c.Cookie("token")
+	if err != nil{
+		fmt.Println("完犊子,没收到token.重定向")
+		c.Redirect(http.StatusMovedPermanently, "http://159.75.2.47:8000/v1/1")
+	}
+	c.HTML(http.StatusOK, "index_view.html",nil)
+}
+
+type claims struct {
+	Password       string
+	Username string
+	jwt.StandardClaims
+}
+
+func generateToken(cla claims) (string,error){
+	token,err :=  jwt.NewWithClaims(jwt.SigningMethodHS256, cla).SignedString([]byte("golang"))
+	if err != nil{
+		fmt.Println("generate token falied:",err)
+		return "",err
+	}
+	return token,nil
+}
+
+func ParseToken(token string) (*claims, error) {
+	tokenClaims, err := jwt.ParseWithClaims(token, &claims{}, func(token *jwt.Token) (interface{}, error) {
+	  return []byte("golang"), nil
+	})
+	if err != nil {
+	  return nil, err
+	}
+  
+	if tokenClaims != nil {
+	  if claims, ok := tokenClaims.Claims.(*claims); ok && tokenClaims.Valid {
+		return claims, nil
+	  }
+	}
+  
+	return nil, err
+  }
